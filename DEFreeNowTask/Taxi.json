@@ -1,0 +1,30 @@
+#  TAXI DATA
+{
+    "poiList": [
+        {
+            "id": -479925044,
+            "coordinate": {
+                "latitude": 53.5530854,
+                "longitude": 9.955689 },
+            "state":
+            "INACTIVE",
+            "type": "TAXI",
+            "heading": 0.0
+        }, {
+            "id": 743402081,
+            "coordinate": {
+                "latitude": 53.585491577106666,
+                "longitude": 9.98225922767678 },
+            "state": "ACTIVE",
+            "type": "TAXI",
+            "heading": 233.87039184570312
+        }, {
+            "id": 1241571097,
+            "coordinate": {
+                "latitude": 53.5494851,
+                "longitude": 9.9272429 },
+            "state": "INACTIVE",
+            "type": "TAXI",
+            "heading": 0.0
+        } ]
+}
