@@ -14,7 +14,7 @@ struct PoiData: Decodable {
 }
 
 // MARK: - Vehicle
-struct Vehicle: Identifiable {
+struct Vehicle: Identifiable  {
     let id: Int
     var coordinate: Coordinate
     var state: VehicleState
@@ -22,6 +22,9 @@ struct Vehicle: Identifiable {
     var heading: Double
     var distance: Double? = 0
     var ett: Int? = 0
+    lazy var location: CLLocation = {
+        CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
+    }()
 }
 
 extension Vehicle: Decodable {

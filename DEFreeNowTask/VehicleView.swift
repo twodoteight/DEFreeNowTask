@@ -10,42 +10,93 @@ import CoreData
 
 struct VehicleView: View {
     
-    
-    @StateObject private var model = VehicleViewModel()
-    
-    //@State private var userTrackingMode: MapUserTrackingMode = .follow
+    @StateObject private var viewModel = VehicleViewModel()
+    @State private var userTrackingMode: MapUserTrackingMode = .follow
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Map(coordinateRegion: $model.region, showsUserLocation: true)
-                .frame(
-                    width: UIScreen.main.bounds.width,
-                    height: UIScreen.main.bounds.height / 3,
-                    alignment: Alignment(horizontal: .center, vertical: .top))
-                .accentColor(Color(.systemIndigo))
+            
+            VehicleMapView(region: $viewModel.region,
+                           userTrackingMode: $userTrackingMode,
+                           vehicleList: viewModel.vehiclesInViewList)
                 .onAppear {
-                    model.checkIfLocationServicesIsEnabled()
+                    viewModel.checkIfLocationServicesIsEnabled()
+                    viewModel.startMapUpdate()
                 }
-            
-            Text("Cars")
-                .font(.system(size: 30))
-                .padding(10)
-            
+                .onDisappear {
+                    viewModel.stopMapUpdate()
+                }
+                            
             List {
-                ListHeader().zIndex(1)               // << header
-                    .frame(height: 60)
-                ForEach(model.vehicleList, id: \.id) { vehicle in
-                    VehicleItem(item: vehicle)
+                Section(header: ListHeader(), footer: ListFooter()) {
+                    ForEach(viewModel.vehicleList, id: \.id) { vehicle in
+                        VehicleItem(item: vehicle)
+                    }
                 }
+
             }
             .listStyle(DefaultListStyle())
-            .onAppear(perform: model.fetchAllVehicles)
-            .navigationTitle("Cars")
-            
+            .onAppear {
+                viewModel.fetchAllVehicles()
+            }
         }
         
     }
 }
+
+struct VehicleMapView: View {
+    @Binding var region: MKCoordinateRegion
+    @Binding var userTrackingMode: MapUserTrackingMode
+    var vehicleList: [Vehicle]
+    
+    @State private var expanded = false
+
+    var body: some View {
+        
+        ZStack() {
+            Map(coordinateRegion: $region,
+                showsUserLocation: true,
+                userTrackingMode: $userTrackingMode,
+                annotationItems: vehicleList) {vehicle in
+                MapAnnotation(coordinate: CLLocationCoordinate2D(latitude: vehicle.coordinate.latitude, longitude: vehicle.coordinate.longitude)) {
+                    Image(systemName: "arrow.right.circle.fill")
+                        .rotationEffect(Angle.degrees(vehicle.heading - 90))
+                }
+
+            }
+            .accentColor(Color(.systemIndigo))
+            VStack{
+                Spacer()
+                HStack{
+                    Spacer()
+                    Button() {
+                        withAnimation {
+                            expanded.toggle()
+                        }
+                    } label: {
+                        Image(systemName: expanded ? "arrow.down.right.and.arrow.up.left" : "arrow.up.left.and.arrow.down.right")
+                    }
+                    .padding()
+                    .background(Color.black.opacity(0.75))
+                    .foregroundColor(Color.pink)
+                    .font(.title3)
+                    .clipShape(Circle())
+                    .padding([.trailing, .bottom])
+                }
+            }
+            
+        }
+        .edgesIgnoringSafeArea([.top])
+        .frame(
+            width: UIScreen.main.bounds.width,
+            height: self.expanded ? UIScreen.main.bounds.height : UIScreen.main.bounds.height / 3,
+            alignment: Alignment(horizontal: .center, vertical: .top))
+//        Text("Cars")
+//            .font(.system(size: 30))
+//            .padding(10)
+    }
+}
+
 struct VehicleItem: View {
     let type: String
     let state: String
@@ -113,11 +164,16 @@ struct Annotation: View {
 
 struct ListHeader: View {
     var body: some View {
-        HStack {
+        
+        HStack(alignment: .top, spacing: 0) {
             Text("Cars")
-                .font(.system(size: 20))
-        }
+                .font(.system(size: 30))
+        
+}
     }
+//        .zIndex(1)
+//        .frame(height: 60)
+    
 }
 
 struct ListFooter: View {
