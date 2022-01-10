@@ -1,8 +1,8 @@
 //
 //  APIRequest.swift
-//  HackerNews
+//  DEFreeNowTask
 //
-//  Created by Matteo Manferdini on 21/10/2020.
+//  Created by Kerem on 26.12.2021.
 //
 
 import Foundation

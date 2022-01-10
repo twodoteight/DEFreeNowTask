@@ -1,12 +1,13 @@
 //
-//  NewsModel.swift
-//  HackerNews
+//  VehicleViewModel.swift
+//  DEFreeNowTask
 //
-//  Created by Matteo Manferdini on 21/10/2020.
+//  Created by Kerem on 26.12.2021.
 //
 
 import Foundation
 import MapKit
+
 
 enum MapInfo {
     static let startingLocation = CLLocationCoordinate2D(
@@ -25,41 +26,89 @@ class VehicleViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         span: MapInfo.initialSpan
     )
     
-    private let hamburgFirstPoint: Coordinate = Coordinate(latitude: 53.694865, longitude: 9.757589)
-    private let hamburgSecondPoint: Coordinate = Coordinate(latitude: 53.394655, longitude: 10.099891)
     private var locationManager: CLLocationManager?
     private var fetchTimer: Timer?
     private var updating: Bool = false
     
-    func fetchAllVehicles() {
-
-        fetchVehiclesInArea(p1: hamburgFirstPoint, p2: hamburgSecondPoint) {[weak self] (poiData: PoiData?) in
-            let tempList: [Vehicle] = poiData?.poiList ?? []
-            self?.vehicleList = tempList
-            print(self?.vehicleList[0] ?? "no vehicle!!!!")
-            for vehicle in tempList {}
+    //
+    func getRoute(from: Vehicle, completion: @escaping (MKRoute?) -> Void) {
+        guard let locationCoordinates = locationManager?.location?.coordinate else {
+            // Cannot access to current location
+            return
         }
         
-        //        let urlString = "https://poi-api.mytaxi.com/PoiService/poi/v1?p2Lat=\(secondPoint.latitude)&p1Lon=\(firstPoint.longitude)&p1Lat=\(firstPoint.latitude)&p2Lon=\(secondPoint.longitude)"
-        //        let url = URL(string: urlString.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed)!)!
-        //
-        //        let apiRequest = APIRequest(url: url)
-        //        apiRequest.perform { [weak self] (poiData: PoiData?) in
-        //            self?.vehicleList = poiData?.poiList ?? []
-        //            var tempList: [Vehicle] = poiData?.poiList ?? []
-        //            print(tempList[0])
-        //            for vehicle in tempList {}
-        //        }
+        let vehicleCoordinates =  CLLocationCoordinate2D(latitude: from.coordinate.latitude, longitude: from.coordinate.longitude)
+        let request = createDirectionsRequest(from: vehicleCoordinates, to: locationCoordinates)
+        let directions = MKDirections(request: request)
+        
+        directions.calculate { response, error in
+            if error != nil {
+                // TODO: Handle error
+            }
+            guard let response = response else {
+                // TODO: Handle no response
+                return
+            }
+            
+            let route = response.routes[0]
+            completion(route)
+        }
     }
     
+    // Helper for creating a MKDirections request
+    func createDirectionsRequest(from: CLLocationCoordinate2D, to: CLLocationCoordinate2D) -> MKDirections.Request {
+        let source = MKPlacemark(coordinate: from)
+        let destination = MKPlacemark(coordinate: to)
+        
+        let request = MKDirections.Request()
+        request.source = MKMapItem(placemark: source)
+        request.destination = MKMapItem(placemark: destination)
+        request.transportType = .automobile
+        request.requestsAlternateRoutes =  false
+        
+        return request
+    }
+    
+    // Calculate the distance and estimated travel time of potential transports
+    func updateVehicleDistances() {
+        for i in 0..<(vehicleList.count) {
+            var vehicle = vehicleList[i]
+            getRoute(from: vehicle) { [weak self] route in
+                vehicle.ett = route?.expectedTravelTime ?? -1
+                vehicle.distance = route?.distance ?? -1
+                self?.vehicleList[i] = vehicle
+            }
+        }
+    }
+    
+    // Fetches all vehicles in Hamburg, performs calculations, updates the data accordingly
+    func fetchAllVehicles() {
+        let hamburgFirstPoint: Coordinate = Coordinate(latitude: 53.694865, longitude: 9.757589)
+        let hamburgSecondPoint: Coordinate = Coordinate(latitude: 53.394655, longitude: 10.099891)
+        
+        vehicleList.removeAll()
+        fetchVehiclesInArea(p1: hamburgFirstPoint, p2: hamburgSecondPoint) {[weak self] ( poiData: PoiData?) in
+            let tempList: [Vehicle] = poiData?.poiList ?? []
+            //self?.vehicleList = tempList
+            for i in 0..<(tempList.count) {
+                let vehicle = tempList[i]
+                self?.vehicleList.append(vehicle)
+            }
+            self?.updateVehicleDistances()
+        }
+    }
+    
+    // Initiates API calls for the visible map region
     func startMapUpdate() {
         updating = true
         fetchVehiclesOnMap()
     }
+    // Stops the map update (e.g. if the map view disappers)
     func stopMapUpdate() {
         updating = false
     }
     
+    // Calls fetchVehiclesInArea function using currently visible map borders
     func fetchVehiclesOnMap() {
         if !updating {
             return
@@ -69,15 +118,16 @@ class VehicleViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
                                         longitude: region.center.longitude - (region.span.longitudeDelta / 2.0))
         let southEastPoint = Coordinate(latitude: region.center.latitude - (region.span.latitudeDelta / 2.0),
                                         longitude: region.center.longitude + (region.span.longitudeDelta / 2.0))
-                
+        
         fetchVehiclesInArea(p1: northWestPoint, p2: southEastPoint) { [weak self] (poiData: PoiData?) in
             let tempList: [Vehicle] = poiData?.poiList ?? []
             self?.vehiclesInViewList = tempList
             self?.fetchVehiclesOnMap()
         }
-    
+        
     }
     
+    // Fetches vehicles between the specified coordinates
     func fetchVehiclesInArea(p1: Coordinate, p2: Coordinate, completion: @escaping (PoiData?) -> Void) {
         
         let urlString = "https://poi-api.mytaxi.com/PoiService/poi/v1?p2Lat=\(p2.latitude)&p1Lon=\(p1.longitude)&p1Lat=\(p1.latitude)&p2Lon=\(p2.longitude)"
@@ -95,32 +145,50 @@ class VehicleViewModel: NSObject, ObservableObject, CLLocationManagerDelegate {
         if CLLocationManager.locationServicesEnabled() {
             // Init locationManager and assign the delegate.
             // Force unwrap is feasible since the object is created above.
-            self.locationManager = CLLocationManager()
-            self.locationManager!.delegate = self
+            locationManager = CLLocationManager()
+            locationManager!.delegate = self
+            centerOnUser()
             
         } else {
-            print("Inform user to enable location services")
+            // TODO: Inform user to enable location services
+            print("Location services are disabled")
         }
     }
+    
+    // Centers region on user
+    func centerOnUser() {
+        if let userCoordinates = locationManager?.location?.coordinate {
+            region = MKCoordinateRegion(
+                center: userCoordinates,
+                span: MapInfo.initialSpan
+            )
+        }
+    }
+    
+    // Delegate functions
     private func checkLocationAuthorization() {
-        guard let locationManager = self.locationManager else { return }
+        guard let locationManager = locationManager else {
+            // Something is wrong, location manager is nil
+            return
+        }
+        
         switch locationManager.authorizationStatus {
         case .notDetermined:
             locationManager.requestWhenInUseAuthorization()
         case .restricted:
-            print("Location restirected alert")
+            // TODO: Let user know
+            print("Location restirected")
         case .denied:
-            print("User denied service aske them to fix it")
+            // TODO: Let user know
+            print("User denied service ask them to fix it")
         case .authorizedAlways, .authorizedWhenInUse:
-            region = MKCoordinateRegion(
-                center: locationManager.location!.coordinate,
-                span: MapInfo.initialSpan
-            )
+            print("Location tracking authorized")
         @unknown default:
             break
         }
     }
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+    
+    private func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         print("User changed location manager access")
         checkLocationAuthorization()
     }

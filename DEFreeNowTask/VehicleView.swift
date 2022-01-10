@@ -26,14 +26,14 @@ struct VehicleView: View {
                 .onDisappear {
                     viewModel.stopMapUpdate()
                 }
-                            
+            
             List {
                 Section(header: ListHeader(), footer: ListFooter()) {
                     ForEach(viewModel.vehicleList, id: \.id) { vehicle in
                         VehicleItem(item: vehicle)
                     }
                 }
-
+                
             }
             .listStyle(DefaultListStyle())
             .onAppear {
@@ -50,7 +50,7 @@ struct VehicleMapView: View {
     var vehicleList: [Vehicle]
     
     @State private var expanded = false
-
+    
     var body: some View {
         
         ZStack() {
@@ -62,9 +62,9 @@ struct VehicleMapView: View {
                     Image(systemName: "arrow.right.circle.fill")
                         .rotationEffect(Angle.degrees(vehicle.heading - 90))
                 }
-
+                
             }
-            .accentColor(Color(.systemIndigo))
+                .accentColor(Color(.systemIndigo))
             VStack{
                 Spacer()
                 HStack{
@@ -91,9 +91,6 @@ struct VehicleMapView: View {
             width: UIScreen.main.bounds.width,
             height: self.expanded ? UIScreen.main.bounds.height : UIScreen.main.bounds.height / 3,
             alignment: Alignment(horizontal: .center, vertical: .top))
-//        Text("Cars")
-//            .font(.system(size: 30))
-//            .padding(10)
     }
 }
 
@@ -104,6 +101,7 @@ struct VehicleItem: View {
     let ett: String
     var body: some View {
         HStack(alignment: .center, spacing: 40.0) {
+            // A placeholder for potential car-type icon
             Circle().frame(width: 60, height: 60, alignment: .center)
             VStack(alignment: .leading, spacing: 20.0) {
                 Text(type)
@@ -111,17 +109,13 @@ struct VehicleItem: View {
                 Text(state)
                     .font(.footnote)
                     .foregroundColor(.secondary)
+                // Distance and estimated time indicators
                 HStack() {
-                    if #available(iOS 15.0, *) {
-                        Badge(text: distance, imageName: "arrowtriangle.up.circle")
-                            .foregroundColor(.teal)
-                    } else {
-                        Badge(text: distance, imageName: "arrowtriangle.up.circle")
-                            .foregroundColor(.blue)
-                    }
+                    Badge(text: distance, imageName: "arrowtriangle.up.circle")
+                        .foregroundColor(.blue)
                     Badge(text: ett, imageName: "ellipses.bubble")
-                        .padding(.leading, 96.0)
-                        .foregroundColor(.orange)
+                        .padding(.leading, 5)
+                        .foregroundColor(.pink)
                 }
                 .font(.callout)
                 .padding(.bottom)
@@ -134,8 +128,16 @@ struct VehicleItem: View {
 extension VehicleItem {
     init(item: Vehicle) {
         type = item.type.rawValue
-        distance = "5"
-        ett = "5"
+        
+        let df = MKDistanceFormatter()
+        df.units = .metric
+        df.unitStyle = .abbreviated
+        distance = df.string(fromDistance: item.distance)
+        
+        let tm = DateComponentsFormatter()
+        tm.unitsStyle = .abbreviated
+        tm.allowedUnits = [.hour, .minute]
+        ett = tm.string(from: item.ett) ?? "NA"
         state = "Currently " + item.state.rawValue
     }
 }
@@ -166,20 +168,17 @@ struct ListHeader: View {
     var body: some View {
         
         HStack(alignment: .top, spacing: 0) {
-            Text("Cars")
-                .font(.system(size: 30))
-        
-}
+            Text("Available Cars")
+                .font(.system(size: 24))
+            
+        }
     }
-//        .zIndex(1)
-//        .frame(height: 60)
-    
 }
 
 struct ListFooter: View {
     var body: some View {
         HStack {
-            Text("DotEight")
+            Text("Kerem Donmez")
         }
     }
 }
