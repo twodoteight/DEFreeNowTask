@@ -19,8 +19,8 @@ class APIRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         
-        let session = URLSession(configuration: .default, delegate: nil, delegateQueue: .main)
-        let task = session.dataTask(with: url) { data, response, error in
+        //let session = URLSession(configuration: .default, delegate: nil, delegateQueue: .main)
+        let task = URLSession.shared.dataTask(with: url) { data, response, error in
             guard let data = data else {
                 completion(nil)
                 return

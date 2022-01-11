@@ -1,11 +1,12 @@
 //
-//  Taxi.swift
+//  PoiData.swift
 //  DEFreeNowTask
 //
 //  Created by Kerem on 31.12.2021.
 //
 
 import Foundation
+import MapKit
 
 // MARK: - PoiData
 // Root data
@@ -21,8 +22,9 @@ struct Vehicle: Identifiable  {
     var state: VehicleState
     let type: VehicleType
     var heading: Double
-    var distance: Double = 0
-    var ett: Double = 0
+    var distance: Double?
+    var ett: Double?
+    var selected: Bool = false
 }
 
 extension Vehicle: Decodable {
@@ -54,7 +56,12 @@ extension Coordinate: Decodable {
         longitude = try container.decode(Double.self, forKey: .longitude)
         //location = CLLocation(latitude: latitude, longitude: longitude)
     }
-    
+}
+
+extension Coordinate: Equatable {
+    static func ==(lhs: Coordinate, rhs: Coordinate) -> Bool {
+        return lhs.latitude == rhs.latitude && lhs.longitude == rhs.longitude
+    }
 }
 // MARK: - Types
 enum VehicleState: String, Decodable {
@@ -77,9 +84,16 @@ extension Int {
 
 extension Double {
     var distanceString: String {
-        let distanceFormatter = MeasurementFormatter()
-        distanceFormatter.unitOptions = .providedUnit
-        let measurement = Measurement(value: self, unit: UnitLength.meters)
-        return distanceFormatter.string(from: measurement)
+        let formatter = MKDistanceFormatter()
+        formatter.units = .metric
+        formatter.unitStyle = .abbreviated
+        return formatter.string(fromDistance: self)
+    }
+    
+    var timeString: String {
+        let formatter = DateComponentsFormatter()
+        formatter.unitsStyle = .abbreviated
+        formatter.allowedUnits = [.hour, .minute]
+        return formatter.string(from: self) ?? "NA"
     }
 }
